@@ -1,0 +1,7 @@
+# Exclude environment secrets from Git tracking
+.env
+
+# Exclude virtual environment and cache
+__pycache__/
+*.py[cod]
+.venv/
