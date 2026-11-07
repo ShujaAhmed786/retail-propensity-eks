@@ -1,6 +1,6 @@
 image:
   repository: 639283101421.dkr.ecr.us-east-1.amazonaws.com/retail-propensity
-  tag: "bootstrap"
+  tag: "8fc1552d3a39e746e71cf48087b39d81c9b647c4"
   pullPolicy: IfNotPresent
 
 replicaCount: 2
