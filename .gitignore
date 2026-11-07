@@ -5,3 +5,13 @@
 __pycache__/
 *.py[cod]
 .venv/
+
+# Terraform working files and state
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# Local scratch
+*.bak
+repo-files.zip
+lb-values.yaml

@@ -1,0 +1,52 @@
+name: build-and-deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'app.py'
+      - 'db.py'
+      - 'requirements.txt'
+      - 'Dockerfile'
+      - 'dashboard/**'
+      - 'data/**'
+      - 'models/**'
+      - '.github/workflows/deploy.yaml'
+
+permissions:
+  id-token: write
+  contents: write
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::639283101421:role/retail-propensity-github-actions
+          aws-region: us-east-1
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push the image
+        env:
+          ECR: 639283101421.dkr.ecr.us-east-1.amazonaws.com/retail-propensity
+        run: |
+          docker build -t $ECR:${{ github.sha }} .
+          docker push $ECR:${{ github.sha }}
+
+      - name: Point the chart at the new image
+        run: |
+          sed -i "s/^  tag:.*/  tag: \"${{ github.sha }}\"/" helm/retail-propensity/values.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add helm/retail-propensity/values.yaml
+          git commit -m "deploy: image ${{ github.sha }}" || echo "tag already current"
+          git push

@@ -1,0 +1,17 @@
+image:
+  repository: 639283101421.dkr.ecr.us-east-1.amazonaws.com/retail-propensity
+  tag: "bootstrap"
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+host: app.shujaahmed.dev
+certificateArn: arn:aws:acm:us-east-1:639283101421:certificate/afe81c6d-85ae-45ea-a5ac-d5418ce99ffa
