@@ -1,3 +1,40 @@
+# ☁️ Deployment: this app runs in production on Amazon EKS
+
+**Live app:** https://app.shujaahmed.dev
+**Monitoring (Grafana):** https://grafana.shujaahmed.dev
+
+This repo takes the Retail Subscription Propensity app (original project below) and runs it in production on AWS with a full DevOps pipeline. Everything is code: Terraform for the AWS side, Helm and Argo CD inside the cluster.
+
+![Deployment architecture](docs/deployment-architecture.png)
+
+## How it is built
+
+- **Terraform** creates the network and cluster: VPC 10.0.0.0/16 across two availability zones, public and private subnets, a low cost fck-nat pair instead of managed NAT gateways, and an Amazon EKS 1.36 cluster.
+- **Nodes** are Spot t4g.medium (ARM) in a managed node group that scales from 2 to 4. A $150/month AWS budget alarm watches the spend.
+- **CI** runs on GitHub Actions (native ARM runner). It assumes an AWS role with OIDC, so there are no static AWS keys anywhere. It builds the Docker image (the model is pinned to scikit-learn 1.7.2, the version it was trained with), pushes it to Amazon ECR, then commits the new image tag back into the Helm values.
+- **Argo CD** watches this repo and syncs the app chart and the monitoring stack. Git is the source of truth, the cluster heals itself back to what the repo says.
+- **One shared Application Load Balancer** serves the app and Grafana, with an ACM certificate for HTTPS and HTTP redirected to HTTPS.
+- **Monitoring** is kube-prometheus-stack: Prometheus with 3 day retention on a 10 Gi gp3 volume, Grafana dashboards for node and pod views.
+
+## Proof it works
+
+- Health endpoint returns ok: https://app.shujaahmed.dev/_stcore/health
+- Self healing drill: app pods were deleted on purpose and both replacements were running again in about 50 seconds.
+- Zero downtime deploys: the chart rolls with maxUnavailable 0 and a pod disruption budget of 1.
+
+## Repo layout (deployment parts)
+
+```
+├── terraform/              # Bootstrap, network, EKS and platform modules
+├── helm/retail-propensity/ # The app Helm chart
+├── gitops/                 # Argo CD Applications (app + monitoring) and the gp3 storage class
+└── .github/workflows/      # CI: build, push to ECR, bump the image tag
+```
+
+The application itself is the open source project below (MIT), by raomiran14. This repo adds the production deployment around it.
+
+---
+
 # 🛍️ Retail Subscription Propensity — ML Prediction Engine
 
 > End-to-end machine learning system predicting which retail customers are most likely to convert to a premium subscription — served as an interactive Streamlit app, with a Power BI executive dashboard and a SQL analytics suite.
@@ -60,7 +97,6 @@ Python · scikit-learn · pandas · Streamlit · Power BI · SQL (MySQL via SQLA
 ├── notebooks/              # EDA + feature engineering notebooks
 ├── dashboard/              # Power BI dashboard (.pbix + preview)
 ├── sql/                    # Business analytics queries
-├── data/                   # Raw + cleaned datasets
 └── requirements.txt
 ```
 
