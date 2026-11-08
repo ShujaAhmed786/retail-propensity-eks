@@ -33,7 +33,9 @@ resource "aws_iam_role" "github_actions" {
       Condition = {
         StringEquals = {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-          "token.actions.githubusercontent.com:sub" = "repo:ShujaAhmed786/retail-propensity-eks:ref:refs/heads/main"
+        }
+        StringLike = {
+          "token.actions.githubusercontent.com:sub" = "repo:ShujaAhmed786*/retail-propensity-eks*:ref:refs/heads/main"
         }
       }
     }]
@@ -99,6 +101,33 @@ resource "aws_iam_policy" "lb_controller" {
 resource "aws_iam_role_policy_attachment" "lb_controller" {
   role       = aws_iam_role.lb_controller.name
   policy_arn = aws_iam_policy.lb_controller.arn
+}
+
+resource "aws_iam_role" "ebs_csi" {
+  name = "retail-propensity-ebs-csi"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRoleWithWebIdentity"
+      Effect    = "Allow"
+      Principal = { Federated = aws_iam_openid_connect_provider.eks.arn }
+      Condition = {
+        StringEquals = {
+          "${local.oidc_host}:aud" = "sts.amazonaws.com"
+          "${local.oidc_host}:sub" = "system:serviceaccount:kube-system:ebs-csi-controller-sa"
+        }
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ebs_csi" {
+  role       = aws_iam_role.ebs_csi.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+}
+
+output "ebs_csi_role_arn" {
+  value = aws_iam_role.ebs_csi.arn
 }
 
 output "ecr_repository_url" {
